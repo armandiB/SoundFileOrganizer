@@ -37,6 +37,7 @@ def convert_files(input_folder, output_folder, rewrite=False):
 
                 if file_type in COPY_FILE_TYPES and tg_file_type == file_type:
                     make_dir(final_output_path)
+                    print("Copying: " + str(final_output_path))
                     shutil.copy2(file_path, final_output_path)
                     continue
 
