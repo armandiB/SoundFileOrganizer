@@ -26,6 +26,7 @@ def convert_files(input_folder, output_folder, rewrite=False):
             if file is None:
                 continue
             else:
+                print("Analysing: " + str(file_path))
                 rel_path = os.path.relpath(file_path, start=input_folder)
                 output_path = os.path.join(output_folder, rel_path)
 
@@ -112,6 +113,7 @@ def convert_file(sound, sample_rate, tg_sample_rate, tg_bit_depth, tg_file_type,
 
     if tg_file_type in ['wav', 'aiff']:
         make_dir(output_path)
+        print("Writing: " + str(output_path))
         soundfile.write(output_path, final_sound, tg_sample_rate, subtype='PCM_' + str(tg_bit_depth))
 
     return
