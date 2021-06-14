@@ -8,8 +8,10 @@ import soundfile
 import shutil
 
 EXCLUDED_FOLDERS = ['Wreck His Days'] #TODO: what to do when there is a slash in forder name?
-EXCLUDED_EXTENSIONS = ['.part']
+EXCLUDED_FILE_TYPES = ['part']
 COPY_FILE_TYPES = ['mp3', 'aac', 'm4a', 'mp4']
+
+#TODO: FIX MONO
 
 def convert_files(input_folder, output_folder, rewrite=False):
     file_paths = {}
@@ -22,7 +24,11 @@ def convert_files(input_folder, output_folder, rewrite=False):
 
         for filename in filenames:
             file_path = os.path.join(dirpath, filename)
-            file = File(file_path)
+            try:
+                file = File(file_path)
+            except:
+                file = None
+                print("Failed opening: " + str(file_path))
             if file is None:
                 continue
             else:
@@ -35,14 +41,21 @@ def convert_files(input_folder, output_folder, rewrite=False):
                 if os.path.isfile(final_output_path) and not rewrite:
                     continue
 
-                if file_type in COPY_FILE_TYPES and tg_file_type == file_type:
-                    make_dir(final_output_path)
-                    print("Copying: " + str(final_output_path))
-                    shutil.copy2(file_path, final_output_path)
+                if file_type in EXCLUDED_FILE_TYPES:
                     continue
 
-                sound, sample_rate, tg_sample_rate, tg_bit_depth = get_target_info(
+                if file_type in COPY_FILE_TYPES and tg_file_type == file_type:
+                    copy_file(file_path, final_output_path)
+                    continue
+
+                sample_rate, bit_depth, tg_sample_rate, tg_bit_depth = get_target_info(
                     file, file_path, tg_file_type)
+
+                if tg_file_type == file_type and sample_rate == tg_sample_rate and bit_depth == tg_bit_depth:
+                    copy_file(file_path, final_output_path)
+                    continue
+
+                sound, _ = librosa.load(file_path, mono=False, sr=sample_rate)
 
                 if sound is not None:
                     file_paths[file_path] = final_output_path
@@ -52,8 +65,13 @@ def convert_files(input_folder, output_folder, rewrite=False):
 
     return file_paths
 
+def copy_file(file_path, output_path):
+    make_dir(output_path)
+    print("Copying: " + str(output_path))
+    shutil.copy2(file_path, output_path)
+
 def get_final_output_path(file_path, output_path):
-    file_type = file_path.split('.')[-1]
+    file_type = file_path.split('.')[-1].lower()
     tg_file_type = get_target_file_type(file_type)
     #TODO: crop file name maximum size rekordbox
     final_output_path = make_final_output_path(output_path, tg_file_type)
@@ -70,9 +88,7 @@ def get_target_info(file, file_path, tg_file_type):
     else:
         return None, None, None, None,
 
-    sound, _ = librosa.load(file_path, sr=sample_rate)
-
-    return sound, sample_rate, tg_sample_rate, tg_bit_depth
+    return sample_rate, bit_depth, tg_sample_rate, tg_bit_depth
 
 
 def get_target_file_type(file_type):
@@ -115,7 +131,7 @@ def convert_file(sound, sample_rate, tg_sample_rate, tg_bit_depth, tg_file_type,
     if tg_file_type in ['wav', 'aiff']:
         make_dir(output_path)
         print("Writing: " + str(output_path))
-        soundfile.write(output_path, final_sound, tg_sample_rate, subtype='PCM_' + str(tg_bit_depth))
+        soundfile.write(output_path, final_sound.transpose(), tg_sample_rate, subtype='PCM_' + str(tg_bit_depth))
 
     return
 
@@ -133,13 +149,13 @@ def copy_tags(input_path, output_path, file_type, tg_file_type, file):
         new_file.save()
     elif tg_file_type in ['aiff']:
         new_file = music_tag.load_file(output_path)
-        new_file["title"] = file["title"]
-        new_file["artist"] = file["artist"]
-        new_file["TRACKNUMBER"] = file["TRACKNUMBER"]
         try:
+            new_file["artist"] = file["artist"]
             new_file["album"] = file["album"]
+            new_file["title"] = file["title"]
+            new_file["TRACKNUMBER"] = file["TRACKNUMBER"]
         except:
-            pass
+            print("Failed to find tag")
         new_file.save()
     else:
         #TODO: read Rekordbox Library (xml) and go find tags there
@@ -151,5 +167,9 @@ if __name__ == "__main__":
     #              r'/Volumes/Elements Armand/ConvertedLibrary/Clean Downloads', rewrite=False)
     #convert_files(r'/Volumes/Elements Armand/root_20210122/External Tracks/USB',
     #              r'/Volumes/Elements Armand/ConvertedLibrary/USB', rewrite=False)
-    convert_files(r'/Volumes/Elements Armand/root_20210122/Floris Tracks/_MusicTransfer_20201121',
-                  r'/Volumes/Elements Armand/ConvertedLibrary/_MusicTransfer_20201121', rewrite=False)
+    #convert_files(r'/Volumes/Elements Armand/root_20210122/Floris Tracks/_MusicTransfer_20201121',
+    #              r'/Volumes/Elements Armand/ConvertedLibrary/_MusicTransfer_20201121', rewrite=False)
+    #convert_files(r'/Volumes/Elements Armand/root/External Tracks/Genre Classified',
+    #              r'/Volumes/Elements Armand/ConvertedLibrary/Genre Classified_Conv20210613', rewrite=False)
+    convert_files(r'/Volumes/Elements Armand/root/Floris Tracks',
+                  r'/Volumes/Elements Armand/ConvertedLibrary/Floris Tracks_Conv20210613', rewrite=False)
